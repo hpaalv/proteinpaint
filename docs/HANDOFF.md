@@ -14,6 +14,10 @@ em todos os testes de ponta a ponta.
 
 ## 2. Rodar e testar
 
+Repositório: **github.com/hpaalv/proteinpaint** (privado, branch `main`). O `gh` está em
+`~/.local/bin/gh`, logado como `hpaalv`; autor dos commits com o e-mail noreply do GitHub.
+
+
 ```bash
 cd ~/Downloads/app/protein_paint
 source ../.toolchain/env.sh          # node/npm portáteis — sem isto, nada funciona
