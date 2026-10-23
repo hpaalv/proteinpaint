@@ -1,0 +1,8 @@
+# Regenerable: npm install / npm run build / the venv recipe in CLAUDE.md
+node_modules/
+dist/
+.pyenv/
+tsconfig.tsbuildinfo
+__pycache__/
+*.pyc
+*.log

@@ -1,0 +1,32 @@
+{
+  "name": "proteinpaint",
+  "productName": "ProteinPaint",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Visualizador molecular para design de proteínas",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --noEmit",
+    "start": "npm run build && ./scripts/launch.sh"
+  },
+  "dependencies": {
+    "echarts": "6.1.0",
+    "molstar": "5.13.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "electron": "44.5.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vite": "6.4.5"
+  }
+}

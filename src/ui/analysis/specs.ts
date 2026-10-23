@@ -1,0 +1,181 @@
+import type { FieldSpec } from './ParamForm';
+
+const SCOREFXNS = [
+    { value: 'ref2015', label: 'ref2015' },
+    { value: 'ref2015_cart', label: 'ref2015_cart' },
+    { value: 'beta_nov16', label: 'beta_nov16' },
+    { value: 'beta_nov16_cart', label: 'beta_nov16_cart' },
+];
+
+export const ROSETTA_INTERFACE_SPECS: FieldSpec[] = [
+    { key: 'scorefxn', label: 'Função de energia', type: 'select', options: SCOREFXNS, group: 'Energia' },
+    { key: 'pack_separated', label: 'Reempacotar lados separados', type: 'bool', group: 'Energia', help: 'dG_separated com repack dos lados isolados — o recomendado pela documentação do IAM e usado no seu pipeline.' },
+    { key: 'pack_input', label: 'Reempacotar o complexo antes', type: 'bool', group: 'Energia', advanced: true, help: 'Desligado quando a estrutura já foi relaxada.' },
+    { key: 'pack_rounds', label: 'Rodadas de repack', type: 'number', min: 1, max: 10, step: 1, group: 'Energia', advanced: true },
+    { key: 'compute_sc', label: 'Complementaridade de forma (Sc)', type: 'bool', group: 'Métricas' },
+    { key: 'calc_hbond_sasaE', label: 'Energia de H-bond por área', type: 'bool', group: 'Métricas', advanced: true },
+    { key: 'compute_packstat', label: 'Packstat (lento)', type: 'bool', group: 'Métricas', help: '~60 s com oversample 30 no 7Q15, contra ~3 s sem.' },
+    { key: 'packstat_oversample', label: 'Oversample do packstat', type: 'number', min: 1, max: 200, step: 1, group: 'Métricas', when: (v) => Boolean(v.compute_packstat) },
+    { key: 'cms', label: 'Contact molecular surface', type: 'bool', group: 'Métricas' },
+    { key: 'cms_distance_weight', label: 'CMS · peso de distância', type: 'number', min: 0, max: 5, step: 0.1, group: 'Métricas', when: (v) => Boolean(v.cms), advanced: true },
+    { key: 'cms_filtered_area', label: 'CMS · área mínima', type: 'number', min: 0, step: 1, unit: 'Å²', group: 'Métricas', when: (v) => Boolean(v.cms), advanced: true },
+    { key: 'cms_quick', label: 'CMS · modo rápido', type: 'bool', group: 'Métricas', when: (v) => Boolean(v.cms), advanced: true },
+    { key: 'cms_use_rosetta_radii', label: 'CMS · raios do Rosetta', type: 'bool', group: 'Métricas', when: (v) => Boolean(v.cms), advanced: true },
+    { key: 'hbonds', label: 'Listar H-bonds da interface', type: 'bool', group: 'H-bonds' },
+    { key: 'hbond_energy_cutoff', label: 'Energia máxima', type: 'number', max: 0, step: 0.05, unit: 'REU', group: 'H-bonds', when: (v) => Boolean(v.hbonds), help: 'Só ligações com energia ≤ este valor.' },
+    { key: 'hbond_include_bb', label: 'Incluir backbone', type: 'bool', group: 'H-bonds', when: (v) => Boolean(v.hbonds) },
+    { key: 'unsats', label: 'Polares insatisfeitos (átomo a átomo)', type: 'bool', group: 'Insatisfeitos' },
+    { key: 'unsat_probe', label: 'Raio da sonda (SASA)', type: 'number', min: 0.5, max: 2, step: 0.1, unit: 'Å', group: 'Insatisfeitos', when: (v) => Boolean(v.unsats), help: '1.0 Å é o legado do BUNS; 1.4 Å = água.' },
+    { key: 'unsat_burial_sasa', label: 'SASA máxima p/ enterrado', type: 'number', min: 0, max: 10, step: 0.1, unit: 'Å²', group: 'Insatisfeitos', when: (v) => Boolean(v.unsats) },
+    { key: 'unsat_hbond_cutoff', label: 'Energia p/ contar como satisfeito', type: 'number', max: 0, step: 0.05, unit: 'REU', group: 'Insatisfeitos', when: (v) => Boolean(v.unsats), advanced: true },
+    { key: 'unsat_include_preexisting', label: 'Incluir os já enterrados antes da ligação', type: 'bool', group: 'Insatisfeitos', when: (v) => Boolean(v.unsats) },
+    { key: 'per_residue', label: 'ΔG / ΔSASA / energia por resíduo', type: 'bool', group: 'Por resíduo' },
+    { key: 'pair_energies', label: 'Energias resíduo–resíduo', type: 'bool', group: 'Por resíduo' },
+    { key: 'pair_energy_cutoff', label: 'Mostrar pares abaixo de', type: 'number', max: 0, step: 0.1, unit: 'REU', group: 'Por resíduo', when: (v) => Boolean(v.pair_energies) },
+    { key: 'pair_neighbor_distance', label: 'Distância de vizinhança', type: 'number', min: 4, max: 20, step: 0.5, unit: 'Å', group: 'Por resíduo', when: (v) => Boolean(v.pair_energies), advanced: true },
+    { key: 'alanine_scan', label: 'Alanine scan (ΔΔG)', type: 'bool', group: 'Alanine scan', help: '~3 s por resíduo; os resíduos são os de ΔSASA acima do mínimo.' },
+    { key: 'ala_side', label: 'Lado', type: 'select', options: [{ value: 'A', label: 'Lado A (binder)' }, { value: 'B', label: 'Lado B (alvo)' }, { value: 'both', label: 'Ambos' }], group: 'Alanine scan', when: (v) => Boolean(v.alanine_scan) },
+    { key: 'ala_min_dsasa', label: 'ΔSASA mínimo', type: 'number', min: 0, step: 1, unit: 'Å²', group: 'Alanine scan', when: (v) => Boolean(v.alanine_scan) },
+    { key: 'ala_repack_radius', label: 'Raio de repack', type: 'number', min: 4, max: 16, step: 0.5, unit: 'Å', group: 'Alanine scan', when: (v) => Boolean(v.alanine_scan), advanced: true },
+    { key: 'remove_hetero', label: 'Remover HETATM (exceto MSE/CGU/fosfo)', type: 'bool', group: 'Entrada', advanced: true, help: 'Ligantes não canônicos derrubam o IAM (segfault) — ver README_rosetta.md §6.1.' },
+    { key: 'remove_waters', label: 'Remover águas', type: 'bool', group: 'Entrada', advanced: true },
+    { key: 'extra_flags', label: 'Flags extras do Rosetta', type: 'text', placeholder: '-ex1 -ex2', group: 'Entrada', advanced: true },
+    { key: 'timeout_min', label: 'Tempo limite', type: 'number', min: 1, step: 1, unit: 'min', group: 'Entrada', advanced: true },
+];
+
+export const RELAX_SPECS: FieldSpec[] = [
+    { key: 'scorefxn', label: 'Função de energia', type: 'select', options: SCOREFXNS },
+    { key: 'repeats', label: 'Repetições do FastRelax', type: 'number', min: 1, max: 15, step: 1 },
+    { key: 'nstruct', label: 'Modelos independentes (nstruct)', type: 'number', min: 1, max: 64, step: 1, help: 'Cada modelo é um processo em paralelo na CPU, com semente própria.' },
+    { key: 'load', label: 'Carregar', type: 'select', options: [{ value: 'best', label: 'O de menor energia' }, { value: 'all', label: 'Todos' }, { value: 'none', label: 'Nenhum (só a tabela)' }] },
+    { key: 'region', label: 'Região móvel', type: 'select', options: [{ value: 'all', label: 'Estrutura inteira' }, { value: 'interface', label: 'Só a interface' }, { value: 'chains', label: 'Cadeias escolhidas' }], group: 'Movimento' },
+    { key: 'interface_radius', label: 'Raio da interface (Cβ)', type: 'number', min: 4, max: 16, step: 0.5, unit: 'Å', group: 'Movimento', when: (v) => v.region === 'interface' },
+    { key: 'bb', label: 'Backbone livre', type: 'bool', group: 'Movimento' },
+    { key: 'chi', label: 'Cadeias laterais livres', type: 'bool', group: 'Movimento' },
+    { key: 'jump', label: 'Jumps (posição relativa) livres', type: 'bool', group: 'Movimento' },
+    { key: 'constrain_to_start', label: 'Restrições às coordenadas iniciais', type: 'bool', group: 'Restrições', help: 'Mantém o relax perto do cristal/modelo. O seu pipeline rodou sem.' },
+    { key: 'cst_stdev', label: 'Desvio das restrições', type: 'number', min: 0.1, max: 5, step: 0.1, unit: 'Å', group: 'Restrições', when: (v) => Boolean(v.constrain_to_start), advanced: true },
+    { key: 'ramp_constraints', label: 'Afrouxar restrições ao longo dos ciclos', type: 'bool', group: 'Restrições', when: (v) => Boolean(v.constrain_to_start) },
+    { key: 'cartesian', label: 'Relax cartesiano', type: 'bool', group: 'Restrições', advanced: true, help: 'Usa a versão _cart da função e minimiza ângulos e comprimentos de ligação.' },
+    { key: 'analyze_interface', label: 'Analisar a interface do modelo relaxado', type: 'bool', group: 'Saída' },
+    { key: 'remove_hetero', label: 'Remover HETATM', type: 'bool', group: 'Entrada', advanced: true },
+    { key: 'remove_waters', label: 'Remover águas', type: 'bool', group: 'Entrada', advanced: true },
+    { key: 'extra_flags', label: 'Flags extras do Rosetta', type: 'text', group: 'Entrada', advanced: true },
+    { key: 'timeout_min', label: 'Tempo limite por modelo', type: 'number', min: 1, step: 1, unit: 'min', group: 'Entrada', advanced: true },
+];
+
+export const DSSP_SPECS: FieldSpec[] = [
+    { key: 'device', label: 'Dispositivo', type: 'select', options: [{ value: 'auto', label: 'Automático (GPU se houver)' }, { value: 'cuda', label: 'GPU (CUDA)' }, { value: 'cpu', label: 'CPU' }] },
+    { key: 'hbond_map', label: 'Mapa de H-bonds do backbone', type: 'bool' },
+    { key: 'hbond_cutoff', label: 'Corte do mapa', type: 'number', min: 0, max: 1, step: 0.05, when: (v) => Boolean(v.hbond_map), advanced: true },
+];
+
+export const TMALIGN_SPECS: FieldSpec[] = [
+    { key: 'normalize', label: 'TM-score normalizado por', type: 'select', options: [{ value: 'reference', label: 'Referência' }, { value: 'mobile', label: 'Móvel' }, { value: 'average', label: 'Média dos dois (-a T)' }, { value: 'custom', label: 'Comprimento definido (-L)' }] },
+    { key: 'custom_length', label: 'Comprimento (-L)', type: 'number', min: 1, step: 1, when: (v) => v.normalize === 'custom' },
+    { key: 'apply', label: 'Aplicar a superposição na cena', type: 'bool' },
+    { key: 'merge_chains', label: 'Juntar várias cadeias em uma', type: 'bool', help: 'TM-align alinha uma cadeia por arquivo; com isto, as cadeias escolhidas viram uma só.' },
+    { key: 'circular_permutation', label: 'Permutação circular (-cp)', type: 'bool', advanced: true },
+    { key: 'fast', label: 'Rápido (-fast)', type: 'bool', advanced: true },
+    { key: 'mirror', label: 'Imagem espelhada (-mirror 1)', type: 'bool', advanced: true },
+    { key: 'byresi', label: 'Correspondência por número (-byresi 1)', type: 'bool', advanced: true, help: 'Mesma proteína em outra conformação: pareia por numeração, sem alinhar.' },
+    { key: 'd0', label: 'Escala d0 (-d), 0 = padrão', type: 'number', min: 0, step: 0.5, unit: 'Å', advanced: true },
+];
+
+export const HYDROGENS_SPECS: FieldSpec[] = [
+    { key: 'ph', label: 'pH', type: 'number', min: 0, max: 14, step: 0.1, help: 'Protonação de His, Asp, Glu, Lys… calculada pelo PROPKA neste pH.' },
+    { key: 'propka', label: 'Protonação por PROPKA', type: 'bool', help: 'Desligado: estados padrão do campo de força.' },
+];
+
+export const ELECTROSTATICS_SPECS: FieldSpec[] = [
+    { key: 'forcefield', label: 'Campo de força', type: 'select', options: ['PARSE', 'AMBER', 'CHARMM', 'PEOEPB', 'SWANSON', 'TYL06'].map((x) => ({ value: x, label: x })), group: 'PDB2PQR' },
+    { key: 'ph', label: 'pH', type: 'number', min: 0, max: 14, step: 0.1, group: 'PDB2PQR' },
+    { key: 'titration', label: 'Protonação', type: 'select', options: [{ value: 'propka', label: 'PROPKA' }, { value: 'none', label: 'Padrão do campo de força' }], group: 'PDB2PQR' },
+    { key: 'pdb2pqr_debump', label: 'Debump', type: 'bool', group: 'PDB2PQR', advanced: true },
+    { key: 'pdb2pqr_optimize_hbonds', label: 'Otimizar rede de H-bonds', type: 'bool', group: 'PDB2PQR', advanced: true },
+    { key: 'ionic_strength', label: 'Força iônica (NaCl)', type: 'number', min: 0, max: 2, step: 0.01, unit: 'M', group: 'APBS' },
+    { key: 'pdie', label: 'ε da proteína', type: 'number', min: 1, max: 40, step: 0.5, group: 'APBS' },
+    { key: 'sdie', label: 'ε do solvente', type: 'number', min: 1, max: 100, step: 0.01, group: 'APBS' },
+    { key: 'equation', label: 'Equação', type: 'select', options: [{ value: 'lpbe', label: 'PB linearizada' }, { value: 'npbe', label: 'PB não linear' }], group: 'APBS' },
+    { key: 'grid_spacing', label: 'Espaçamento máximo da grade fina', type: 'number', min: 0.2, max: 1.5, step: 0.05, unit: 'Å', group: 'Grade' },
+    { key: 'grid_margin', label: 'Folga por eixo', type: 'number', min: 0, max: 1, step: 0.05, group: 'Grade', help: 'Fração da caixa da molécula (0.2 = 20 %).' },
+    { key: 'coarse_factor', label: 'Grade grossa / fina', type: 'number', min: 1.1, max: 4, step: 0.1, group: 'Grade', advanced: true },
+    { key: 'min_dime', label: 'Pontos mínimos por eixo', type: 'number', min: 33, step: 32, group: 'Grade', advanced: true },
+    { key: 'cation_radius', label: 'Raio do cátion', type: 'number', min: 0.5, max: 4, step: 0.1, unit: 'Å', group: 'APBS', advanced: true },
+    { key: 'anion_radius', label: 'Raio do ânion', type: 'number', min: 0.5, max: 4, step: 0.1, unit: 'Å', group: 'APBS', advanced: true },
+    { key: 'boundary', label: 'Contorno', type: 'select', options: [{ value: 'sdh', label: 'sdh (esfera de Debye–Hückel)' }, { value: 'mdh', label: 'mdh (multipolos)' }, { value: 'zero', label: 'zero' }], group: 'APBS', advanced: true },
+    { key: 'surface', label: 'Superfície dielétrica', type: 'select', options: ['smol', 'mol', 'spl2', 'spl4'].map((x) => ({ value: x, label: x })), group: 'APBS', advanced: true },
+    { key: 'charge_discretization', label: 'Discretização de carga', type: 'select', options: ['spl2', 'spl0', 'spl4'].map((x) => ({ value: x, label: x })), group: 'APBS', advanced: true },
+    { key: 'srad', label: 'Raio da sonda', type: 'number', min: 0, max: 3, step: 0.1, unit: 'Å', group: 'APBS', advanced: true },
+    { key: 'swin', label: 'Janela de suavização', type: 'number', min: 0, max: 1, step: 0.05, unit: 'Å', group: 'APBS', advanced: true },
+    { key: 'sdens', label: 'Densidade de pontos', type: 'number', min: 1, max: 40, step: 1, group: 'APBS', advanced: true },
+    { key: 'temperature', label: 'Temperatura', type: 'number', min: 200, max: 400, step: 0.05, unit: 'K', group: 'APBS', advanced: true },
+    { key: 'timeout_min', label: 'Tempo limite', type: 'number', min: 1, step: 1, unit: 'min', group: 'APBS', advanced: true },
+];
+
+export const KVFINDER_SPECS: FieldSpec[] = [
+    { key: 'region', label: 'Região', type: 'select', options: [{ value: 'all', label: 'Estrutura inteira' }, { value: 'ligand', label: 'Ao redor de cadeias (ligante)' }, { value: 'box', label: 'Caixa em torno da seleção' }], group: 'Região', help: 'Ligante: as cadeias saem do receptor e só cavidades perto delas contam — ex.: o peptídeo, para medir o sulco vazio.' },
+    { key: 'ligand_cutoff', label: 'Raio ao redor do ligante', type: 'number', min: 1, max: 20, step: 0.5, unit: 'Å', group: 'Região', when: (v) => v.region === 'ligand' },
+    { key: 'box_padding', label: 'Folga da caixa', type: 'number', min: 0, max: 20, step: 0.5, unit: 'Å', group: 'Região', when: (v) => v.region === 'box' },
+    { key: 'probe_in', label: 'Sonda interna', type: 'number', min: 0, max: 5, step: 0.1, unit: 'Å', group: 'Detecção', help: 'Define o que é espaço livre (1.4 Å = água).' },
+    { key: 'probe_out', label: 'Sonda externa', type: 'number', min: 1, max: 50, step: 0.5, unit: 'Å', group: 'Detecção', help: 'Define a "tampa" da cavidade: maior = cavidades mais rasas também contam.' },
+    { key: 'step', label: 'Espaçamento da grade', type: 'number', min: 0.1, max: 2, step: 0.05, unit: 'Å', group: 'Detecção', help: 'Menor = mais preciso e mais lento (custo ∝ 1/step³).' },
+    { key: 'removal_distance', label: 'Distância de remoção', type: 'number', min: 0, max: 10, step: 0.1, unit: 'Å', group: 'Detecção', advanced: true },
+    { key: 'volume_cutoff', label: 'Volume mínimo', type: 'number', min: 0, step: 1, unit: 'Å³', group: 'Detecção' },
+    { key: 'surface', label: 'Superfície', type: 'select', options: [{ value: 'SES', label: 'SES (excluída do solvente)' }, { value: 'SAS', label: 'SAS (acessível ao solvente)' }], group: 'Detecção' },
+    { key: 'include_depth', label: 'Profundidade', type: 'bool', group: 'Caracterização' },
+    { key: 'include_hydropathy', label: 'Hidropatia', type: 'bool', group: 'Caracterização' },
+    { key: 'hydrophobicity_scale', label: 'Escala', type: 'select', options: ['EisenbergWeiss', 'HessaHeijne', 'KyteDoolittle', 'MoonFleming', 'RadzickaWolfenden', 'WimleyWhite', 'ZhaoLondon'].map((x) => ({ value: x, label: x })), group: 'Caracterização', when: (v) => Boolean(v.include_hydropathy) },
+    { key: 'openings', label: 'Aberturas (bocas)', type: 'bool', group: 'Caracterização', when: (v) => Boolean(v.include_depth) },
+    { key: 'openings_cutoff', label: 'Tamanho mínimo da abertura', type: 'number', min: 1, step: 1, group: 'Caracterização', when: (v) => Boolean(v.openings), advanced: true },
+    { key: 'ignore_backbone', label: 'Ignorar backbone nos resíduos de revestimento', type: 'bool', group: 'Caracterização', advanced: true },
+    { key: 'remove_hetero', label: 'Remover HETATM', type: 'bool', group: 'Entrada', advanced: true },
+    { key: 'remove_waters', label: 'Remover águas', type: 'bool', group: 'Entrada', advanced: true },
+];
+
+export const MHCX_SPECS: FieldSpec[] = [
+    { key: 'run_mode', label: 'Modo', type: 'select', options: [{ value: 'multiple', label: 'Múltiplo (região comum a todas)' }, { value: 'pairwise', label: 'Pareado (todos os pares)' }, { value: 'screening', label: 'Triagem (referência × todas)' }], group: 'Execução' },
+    { key: 'node_granularity', label: 'Centroide do nó', type: 'select', options: [{ value: 'all_atoms', label: 'Todos os átomos' }, { value: 'backbone', label: 'Backbone' }, { value: 'side_chain', label: 'Cadeia lateral' }, { value: 'ca_only', label: 'Só Cα' }], group: 'Grafo' },
+    { key: 'edge_threshold', label: 'Distância máxima da aresta', type: 'number', min: 3, max: 20, step: 0.5, unit: 'Å', group: 'Grafo' },
+    { key: 'include_ligands', label: 'Ligantes como nós', type: 'bool', group: 'Grafo' },
+    { key: 'include_noncanonical_residues', label: 'Resíduos modificados como nós', type: 'bool', group: 'Grafo' },
+    { key: 'include_waters', label: 'Águas como nós', type: 'bool', group: 'Grafo' },
+    { key: 'max_gap_helix', label: 'Gap máximo para unir hélices', type: 'number', min: 0, max: 10, step: 1, group: 'Grafo', advanced: true },
+    { key: 'rsa_filter', label: 'RSA mínima (canônicos)', type: 'number', min: 0, max: 1, step: 0.01, group: 'Superfície', help: 'Resíduos com RSA abaixo disto não entram como nós (não expostos).' },
+    { key: 'asa_filter', label: 'ASA mínima (não canônicos, água, ligante)', type: 'number', min: 0, step: 0.5, unit: 'Å²', group: 'Superfície' },
+    { key: 'distance_bin_width', label: 'Largura do bin de distância', type: 'number', min: 0.5, max: 5, step: 0.1, unit: 'Å', group: 'Tríades' },
+    { key: 'local_distance_diff_threshold', label: 'Δ máx. distâncias da tríade', type: 'number', min: 0, max: 5, step: 0.1, unit: 'Å', group: 'Tríades' },
+    { key: 'global_distance_diff_threshold', label: 'Δ máx. global entre estruturas', type: 'number', min: 0, max: 10, step: 0.1, unit: 'Å', group: 'Tríades' },
+    { key: 'close_tolerance', label: 'Tolerância ao centro do bin', type: 'number', min: 0, max: 1, step: 0.01, group: 'Tríades', advanced: true },
+    { key: 'triad_rsa', label: 'Incluir RSA nos tokens', type: 'bool', group: 'RSA', help: 'A documentação recomenda desligado com centroide só Cα.' },
+    { key: 'rsa_bin_width', label: 'Largura do bin de RSA', type: 'number', min: 0.05, max: 1, step: 0.05, group: 'RSA', when: (v) => Boolean(v.triad_rsa) },
+    { key: 'rsa_diff_threshold', label: 'Δ máx. de RSA', type: 'number', min: 0, max: 1, step: 0.05, group: 'RSA', when: (v) => Boolean(v.triad_rsa) },
+    { key: 'close_tolerance_rsa', label: 'Tolerância de RSA', type: 'number', min: 0, max: 0.2, step: 0.01, group: 'RSA', when: (v) => Boolean(v.triad_rsa), advanced: true },
+    { key: 'max_chunks', label: 'Blocos de processamento', type: 'number', min: 1, max: 64, step: 1, group: 'Execução', advanced: true, help: 'Divide a associação em blocos: menos memória por bloco.' },
+    { key: 'show_std_edges', label: 'Arestas de desvio padrão', type: 'bool', group: 'Execução', advanced: true },
+    { key: 'output_structures', label: 'Escrever estruturas filtradas', type: 'bool', group: 'Execução', advanced: true },
+];
+
+export const RESIDUE_CLASS_PRESETS: Record<string, { label: string; classes: Record<string, string[]> | null }> = {
+    identity: { label: 'Identidade (padrão)', classes: null },
+    physchem: {
+        label: 'Físico-química (6 classes)',
+        classes: {
+            hydrophobic: ['ALA', 'VAL', 'LEU', 'ILE', 'MET', 'PRO'],
+            aromatic: ['PHE', 'TYR', 'TRP'],
+            polar: ['SER', 'THR', 'ASN', 'GLN', 'CYS'],
+            positive: ['LYS', 'ARG', 'HIS'],
+            negative: ['ASP', 'GLU'],
+            special: ['GLY'],
+        },
+    },
+    charge: {
+        label: 'Carga (4 classes)',
+        classes: {
+            positive: ['LYS', 'ARG', 'HIS'],
+            negative: ['ASP', 'GLU'],
+            polar: ['SER', 'THR', 'ASN', 'GLN', 'CYS', 'TYR'],
+            apolar: ['ALA', 'VAL', 'LEU', 'ILE', 'MET', 'PRO', 'PHE', 'TRP', 'GLY'],
+        },
+    },
+};
