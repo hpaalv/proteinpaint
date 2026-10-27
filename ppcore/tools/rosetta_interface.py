@@ -78,7 +78,10 @@ def _params(p: Dict) -> Dict:
 def _iam(pose, p: Dict, sfxn, full: bool):
     from pyrosetta.rosetta.protocols.analysis import InterfaceAnalyzerMover
 
-    iam = InterfaceAnalyzerMover(rc.interface_string(p["side_a"], p["side_b"]))
+    # Empty constructor + set_interface: the string constructor is gone in PyRosetta
+    # 2026.3x, and this form works on older releases too (BindCraft uses it).
+    iam = InterfaceAnalyzerMover()
+    iam.set_interface(rc.interface_string(p["side_a"], p["side_b"]))
     iam.set_scorefunction(sfxn)
     iam.set_pack_separated(bool(p["pack_separated"]))
     iam.set_pack_input(bool(p["pack_input"]))

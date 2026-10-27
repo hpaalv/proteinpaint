@@ -118,7 +118,10 @@ def run(params: Dict, workdir: str) -> Dict:
         protocol.progress(0.92, "Interface do modelo relaxado")
         from pyrosetta.rosetta.protocols.analysis import InterfaceAnalyzerMover
 
-        iam = InterfaceAnalyzerMover(rc.interface_string(p["side_a"], p["side_b"]))
+        # Empty constructor + set_interface: the string constructor is gone in PyRosetta
+        # 2026.3x, and this form works on older releases too (BindCraft uses it).
+        iam = InterfaceAnalyzerMover()
+        iam.set_interface(rc.interface_string(p["side_a"], p["side_b"]))
         iam.set_scorefunction(rc.scorefxn(p["scorefxn"].replace("_cart", "")))
         iam.set_pack_separated(True)
         iam.set_compute_interface_sc(True)
