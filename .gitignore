@@ -6,3 +6,6 @@ tsconfig.tsbuildinfo
 __pycache__/
 *.pyc
 *.log
+
+# HPC toolchain (hpc/setup.sh)
+.hpc/

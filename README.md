@@ -15,6 +15,20 @@ npm run build
 
 Desenvolvimento: `npm run dev` (Vite na porta 5273). Venv dos cálculos: ver `CLAUDE.md`.
 
+## HPC (Slurm)
+
+Tudo o que o app precisa (Node 22, um env conda com PyRosetta, APBS, PDB2PQR, TM-align,
+MHCXGraph, pyKVFinder, pydssp/torch e ffmpeg) é instalado em `.hpc/` (fora do git), com
+versões fixas em `hpc/environment.yml`. Da raiz do repositório:
+
+```bash
+sbatch hpc/setup.sh             # instala/atualiza (ou: bash hpc/setup.sh); log em pp-setup-<id>.log
+sbatch hpc/check.sh             # confere ferramentas e limites dentro de um job
+source hpc/env.sh               # node/npm/python do app na shell atual
+```
+
+Para recomeçar do zero: `rm -rf .hpc && sbatch hpc/setup.sh`.
+
 ## Onde ler
 
 - `docs/HANDOFF.md` — onde o trabalho parou e o que vem a seguir

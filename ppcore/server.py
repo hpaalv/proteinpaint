@@ -87,10 +87,33 @@ def physical_cores() -> int:
     return max(1, (os.cpu_count() or 2) // 2)
 
 
+def slurm_allocation() -> Optional[tuple]:
+    """(cpus, ram_gb) granted to the Slurm job we run in, or None outside Slurm.
+
+    On an HPC node /proc describes the whole shared machine (hundreds of threads,
+    terabytes of RAM); scheduling on it would start far more workers than the job
+    owns, and Slurm kills the job when it goes over its memory.
+    """
+    if "SLURM_JOB_ID" not in os.environ:
+        return None
+    cpus = len(os.sched_getaffinity(0))
+    mem_mb = os.environ.get("SLURM_MEM_PER_NODE")
+    if mem_mb is None and "SLURM_MEM_PER_CPU" in os.environ:
+        mem_mb = str(int(os.environ["SLURM_MEM_PER_CPU"]) * cpus)
+    ram = int(mem_mb) / 1024 if mem_mb else mem_available_gb()
+    return cpus, ram
+
+
 def compute_limits() -> Dict[str, int]:
-    cores = physical_cores()
-    threads = os.cpu_count() or cores
-    ram = mem_available_gb()
+    slurm = slurm_allocation()
+    if slurm:
+        # Slurm hands out hardware threads; count each as a core for scheduling.
+        cores = threads = slurm[0]
+        ram = slurm[1]
+    else:
+        cores = physical_cores()
+        threads = os.cpu_count() or cores
+        ram = mem_available_gb()
     return {
         "rosetta": max(1, min(cores - 2, int(ram / 1.2))),
         "apbs": max(1, min(3, int(ram / 2.5))),

@@ -70,4 +70,8 @@ o primário e recebe imagem por PRIME; ciclar janelas de GPU nele congelou a sa�
   aplicação na cena em `src/compute/apply.ts`, visualização em `src/ui/analysis/views/`.
 - Testar uma ferramenta isolada: `echo '{"tool":…,"workdir":…,"params":…}' | PYTHONPATH=. <python> -m ppcore.worker`.
 - Testes de ponta a ponta: `scripts/selftest.cjs` (visualização) e `scripts/selftest2.cjs` (cálculos).
+- No HPC (Slurm) um env conda só (`hpc/environment.yml`, em `.hpc/env`) faz os dois papéis;
+  `source hpc/env.sh` aponta `PP_APP_PYTHON`/`PP_ROSETTA_PYTHON` para ele. Dentro de um job os
+  limites do agendador vêm da alocação do Slurm, não do nó (`slurm_allocation` em server.py).
+  Mudou dependência? Fixe a versão em `hpc/environment.yml` e rode `sbatch hpc/setup.sh`.
 - Recriar o venv: `/home/paulo/anaconda3/bin/python3 -m venv .pyenv && .pyenv/bin/pip install MHCXGraph==1.0.0 pyKVFinder==0.9.5 gemmi`.

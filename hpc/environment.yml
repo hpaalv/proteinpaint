@@ -1,0 +1,25 @@
+# Compute environment for ProteinPaint on a Linux HPC. One interpreter runs every
+# tool: ppcore's "app" and "rosetta" workers both point at it (hpc/env.sh). The
+# desktop keeps two (.pyenv + SE3nv) only because SE3nv was an existing Python 3.9 env.
+#
+# Every version is pinned so `bash hpc/setup.sh` rebuilds the same environment.
+# PyRosetta: academic license; the wheel is pinned by URL because pyrosetta-installer
+# always takes the latest build.
+name: proteinpaint
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - pip
+  - apbs=3.4.1
+  - tmalign=20240303
+  - ffmpeg=9.0.2
+  - pip:
+      - MHCXGraph==1.0.0
+      - pyKVFinder==0.9.5
+      - gemmi==0.7.5
+      - pdb2pqr==3.8.0
+      - pydssp==0.9.1
+      - torch==2.14.1
+      - https://west.rosettacommons.org/pyrosetta/release/release/PyRosetta4.Release.python311.ubuntu.wheel/pyrosetta-2026.39%2Brelease.49e05e797c-cp311-cp311-linux_x86_64.whl
