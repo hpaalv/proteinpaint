@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# ProteinPaint on the HPC: reserves a node with Slurm, runs the app's server there and
+# prints the SSH tunnel to open it in the browser of your own computer.
+#
+#   hpc/pp-hpc start [--gpu] [--new] [opções do sbatch...]
+#   hpc/pp-hpc status
+#   hpc/pp-hpc stop [jobid]
+#
+# Examples:
+#   hpc/pp-hpc start                          8 CPUs, 32 GB, 8 h on short-cpu (hpc/serve.sh)
+#   hpc/pp-hpc start -c 32 --mem=128G -t 24:00:00
+#   hpc/pp-hpc start --gpu                    one A100 (short-gpu-big), for pydssp on CUDA
+#
+# PP_SSH_HOST overrides the login host printed in the tunnel command.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STATE="$HOME/.cache/proteinpaint/server"
+JOB_NAME=proteinpaint
+LOCAL_PORT=5273
+
+die() { echo "pp-hpc: $*" >&2; exit 1; }
+
+running_jobs() { squeue -h -u "$USER" -n "$JOB_NAME" -o '%i %T %N %L' 2>/dev/null; }
+
+field() { # field <json file> <key>
+    sed -n "s/.*\"$2\":\"\{0,1\}\([^,\"}]*\).*/\1/p" "$1"
+}
+
+print_info() {
+    local id=$1 info="$STATE/$1.json"
+    local node port token login
+    node=$(field "$info" host)
+    port=$(field "$info" port)
+    token=$(field "$info" url | sed 's/.*token=//')
+    login="${PP_SSH_HOST:-$USER@$(hostname -f)}"
+    cat <<EOF
+
+ProteinPaint rodando no job $id (nó $node, porta $port).
+
+1) No SEU computador, abra o túnel (deixe o terminal aberto):
+     ssh -N -L $LOCAL_PORT:$node:$port $login
+
+2) No navegador:
+     http://localhost:$LOCAL_PORT/?token=$token
+
+Encerrar: hpc/pp-hpc stop $id    ·    log: $STATE/$id.log
+EOF
+}
+
+cmd_start() {
+    local args=() new=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --gpu) args+=(--partition=short-gpu-big --gres=gpu:a100:1) ;;
+            --new) new=1 ;;
+            *) args+=("$1") ;;
+        esac
+        shift
+    done
+    [ -x "$ROOT/.hpc/env/bin/python" ] && [ -x "$ROOT/.hpc/node/bin/node" ] || die "ambiente não instalado: rode 'sbatch hpc/setup.sh' primeiro."
+
+    if [ $new -eq 0 ]; then
+        local existing
+        existing=$(running_jobs | awk '$2=="RUNNING"{print $1; exit}')
+        if [ -n "$existing" ] && [ -f "$STATE/$existing.json" ]; then
+            echo "Já existe um ProteinPaint rodando (use --new para abrir outro)."
+            print_info "$existing"
+            return
+        fi
+    fi
+
+    mkdir -p "$STATE" && chmod 700 "$STATE"
+    local id
+    id=$(sbatch --parsable --chdir="$ROOT" --output="$STATE/%j.log" "${args[@]}" "$ROOT/hpc/serve.sh")
+    id=${id%%;*}
+    echo "Job $id submetido. Esperando o nó..."
+
+    local last=""
+    while [ ! -f "$STATE/$id.json" ]; do
+        local line
+        line=$(squeue -h -j "$id" -o '%T %R' 2>/dev/null || true)
+        if [ -z "$line" ]; then
+            echo "O job $id terminou antes de o servidor subir. Fim do log:" >&2
+            tail -n 30 "$STATE/$id.log" >&2 2>/dev/null || true
+            exit 1
+        fi
+        if [ "$line" != "$last" ]; then
+            echo "  $line"
+            last=$line
+        fi
+        sleep 3
+    done
+    print_info "$id"
+}
+
+cmd_status() {
+    local jobs
+    jobs=$(running_jobs)
+    [ -n "$jobs" ] || { echo "Nenhum ProteinPaint rodando."; return; }
+    while read -r id state node left; do
+        if [ "$state" = RUNNING ] && [ -f "$STATE/$id.json" ]; then
+            print_info "$id"
+            echo "Tempo restante: $left"
+        else
+            echo "Job $id: $state ${node:-}"
+        fi
+    done <<< "$jobs"
+}
+
+cmd_stop() {
+    local ids
+    if [ $# -gt 0 ]; then ids="$*"; else ids=$(running_jobs | awk '{print $1}'); fi
+    [ -n "$ids" ] || { echo "Nenhum ProteinPaint rodando."; return; }
+    # shellcheck disable=SC2086
+    scancel $ids
+    echo "Encerrado: $ids"
+}
+
+case "${1:-}" in
+    start) shift; cmd_start "$@" ;;
+    status) cmd_status ;;
+    stop) shift; cmd_stop "$@" ;;
+    *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

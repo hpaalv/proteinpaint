@@ -1,5 +1,51 @@
 # Estado do projeto
 
+## 2026-10-27 — Modo HPC (Slurm): servidor web + túnel SSH
+
+### O que entrou
+
+1. **Instalação reprodutível** (`hpc/environment.yml`, `hpc/setup.sh`): Node 22 + um env conda
+   só (Python 3.11) com PyRosetta 2026.39 fixado por URL, APBS, PDB2PQR, TM-align, MHCXGraph,
+   pyKVFinder, pydssp/torch e ffmpeg, tudo em `.hpc/`. `hpc/check.sh` pergunta ao ppcore.
+2. **Limites do Slurm no ppcore**: dentro de um job, CPUs/RAM vêm da alocação
+   (`slurm_allocation`), não do nó (256 threads, 1–2 TB): sem isso o agendador abriria dezenas de
+   workers Rosetta num job de 8 CPUs e o Slurm o mataria por memória.
+3. **`backend/`**: arquivos, ffmpeg e cliente do ppcore saíram de `electron/` para módulos sem
+   Electron; `electron/ipc.cjs` e `core.cjs` só embrulham os diálogos nativos.
+4. **`server/main.cjs`**: serve `dist/` e a mesma superfície do preload em `/api` (JSON, bytes de
+   estrutura, SSE para jobs, quadros de vídeo). Token → cookie HttpOnly/SameSite=Strict; POST
+   exige `X-PP`; caminhos confinados a `PP_ROOTS` depois de `realpath`; HTML gerado com CSP sandbox.
+5. **`src/platform/web.ts`** instala um `window.pp` sobre HTTP quando a página vem do servidor
+   (marca `<meta name="pp-web">`), então o resto do app não muda. Diálogos nativos viram
+   `src/ui/files/FileDialog.tsx` (abrir/pasta/salvar/navegar; salvar oferece "baixar no meu
+   computador"; abrir aceita arquivos locais).
+6. **`hpc/pp-hpc start|status|stop`** submete `hpc/serve.sh` (recompila se `src/` mudou), espera
+   o nó e imprime o túnel `ssh -N -L 5273:<nó>:<porta>` e a URL com token.
+
+### Corrigido no caminho
+
+- **PyRosetta 2026.3x removeu `InterfaceAnalyzerMover(str)`**: interface e FastRelax com análise
+  falhavam com "incompatible constructor arguments". Agora `InterfaceAnalyzerMover()` +
+  `set_interface(str)` (forma do BindCraft, vale para versões antigas).
+
+### Verificado
+
+- 9/9 ferramentas pelo worker dentro de um job `short-cpu` (TM-align, IMGT, MHCXGraph, FastRelax,
+  KVFinder, DSSP, hidrogênios, APBS, interface Rosetta).
+- Servidor: 401 sem token, 403 para `/etc`, `..`, symlink para fora, escrita fora do home, POST sem
+  `X-PP`; leitura de estrutura byte a byte; job TM-align por HTTP com eventos SSE; MP4 via ffmpeg;
+  `kill` do servidor leva o ppcore junto.
+- `pp-hpc start` real (job no `c001marvin`) + Chromium headless (SwiftShader) pelo nó: abrir
+  estrutura pelo diálogo, 3D, diálogo de salvar, KVFinder disparado do navegador (14 cavidades
+  via SSE), modo Dados com o piloto (152 designs). Zero erros de console.
+- Electron: os 17 handlers de IPC registram e respondem com um `electron` simulado (o binário não
+  existe no HPC). **Falta rodar os `selftest*.cjs` no notebook.**
+
+### Conhecido, não resolvido
+
+- Vídeo no modo web manda RGBA cru pelo túnel (≈8 MB por quadro em 1080p): funciona, mas é lento.
+- `torch_cuda` só foi conferido na CPU; o job de GPU esperava fila de A100.
+
 ## 2026-10-23 — Revisão, lote 7: fechar, níveis de seleção, hidrogênios, Explorar, SS da interface
 
 ### O que entrou

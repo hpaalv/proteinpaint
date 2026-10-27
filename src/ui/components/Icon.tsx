@@ -7,6 +7,7 @@ const PATHS = {
     open: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
     file: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5',
     download: 'M12 3v12m0 0-4-4m4 4 4-4M5 21h14',
+    upload: 'M12 15V3m0 0-4 4m4-4 4 4M5 21h14',
     camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
     cursor: 'M5 3l14 7-6 2-2 6z',
     compass: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 8.5l-2 5-5 2 2-5z',

@@ -28,6 +28,17 @@ npm run dev        # porta 5273 (a 5199 é do Helix)
 
 Teste de ponta a ponta com GPU real: ver `docs/STATUS.md` (`scripts/selftest.cjs`, `selftest2.cjs`, `selftest3.cjs`).
 
+## Desktop e web (HPC)
+
+- O app roda em dois hospedeiros com a mesma interface `window.pp` (`src/platform/bridge.ts`):
+  o preload do Electron e `src/platform/web.ts` (HTTP para `server/main.cjs`). A UI usa só
+  `platform`; nunca `window.pp` direto.
+- Lógica de arquivos, ffmpeg e ppcore mora em `backend/` (sem Electron). `electron/` só adiciona
+  diálogos nativos; `server/main.cjs` só adiciona HTTP, token e confinamento de caminhos.
+- Método novo na ponte: tipo em `Bridge`, handler em `electron/`, método em `METHODS` do servidor
+  (todo caminho do cliente passa por `guard`) e implementação em `web.ts`.
+- No web, diálogos nativos são `askFile` (`src/platform/fileDialog.ts`) + `FileDialogHost`.
+
 ## GPU
 
 Rodar sempre via `scripts/launch.sh` (PRIME offload + EGL da NVIDIA + `--use-angle=gl-egl`).

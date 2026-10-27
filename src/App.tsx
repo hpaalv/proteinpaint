@@ -12,6 +12,7 @@ import { Viewport } from '@/ui/layout/Viewport';
 import { cx } from '@/ui/components/Primitives';
 import { Dock } from '@/ui/analysis/Dock';
 import { DataWorkspace } from '@/ui/data/DataWorkspace';
+import { FileDialogHost } from '@/ui/files/FileDialog';
 
 function isTyping(e: KeyboardEvent): boolean {
     const t = e.target as HTMLElement | null;
@@ -132,6 +133,7 @@ export function App() {
             {workspace === 'data' && <DataWorkspace />}
             <StatusBar />
             <Toasts />
+            <FileDialogHost />
         </div>
     );
 }

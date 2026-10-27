@@ -29,6 +29,21 @@ source hpc/env.sh               # node/npm/python do app na shell atual
 
 Para recomeçar do zero: `rm -rf .hpc && sbatch hpc/setup.sh`.
 
+**Usar o app**: o HPC reserva o nó e roda o servidor; o 3D roda no navegador do seu computador.
+
+```bash
+hpc/pp-hpc start                # 8 CPUs, 32 GB, 8 h; imprime o túnel e a URL
+hpc/pp-hpc start -c 32 --mem=128G -t 24:00:00     # opções extras vão para o sbatch
+hpc/pp-hpc start --gpu          # com uma A100 (short-gpu-big)
+hpc/pp-hpc status               # mostra de novo o túnel e a URL
+hpc/pp-hpc stop
+```
+
+No seu computador, rode o `ssh -N -L 5273:<nó>:<porta> …` impresso, deixe aberto e entre em
+`http://localhost:5273/?token=…`. Os arquivos que o app abre e salva são os do HPC (seu `$HOME`);
+"Do meu computador…" e "Baixar no meu computador" atravessam o túnel. Depois de um `git pull`
+o job recompila sozinho se o código mudou.
+
 ## Onde ler
 
 - `docs/HANDOFF.md` — onde o trabalho parou e o que vem a seguir

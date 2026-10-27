@@ -1,8 +1,10 @@
 /**
- * Typed access to the Electron preload bridge (electron/preload.cjs).
+ * Typed access to the platform bridge: the Electron preload (electron/preload.cjs) or,
+ * when the app is served by server/main.cjs (HPC), the HTTP bridge of web.ts. Both
+ * install the same `window.pp`.
  *
- * In a plain browser (`vite` without Electron) the bridge is missing; file opening
- * then falls back to an <input type=file>, and saving to a download link.
+ * In a plain browser (`vite` alone) the bridge is missing; file opening then falls
+ * back to an <input type=file>, and saving to a download link.
  */
 
 export interface ReadFileResult {
@@ -47,9 +49,9 @@ export interface DatasetScan {
 
 export type MovieFormat = 'mp4' | 'webm' | 'gif' | 'apng' | 'frames';
 
-type CoreReply<T> = { ok: true; value: T } | { ok: false; error: string };
+export type CoreReply<T> = { ok: true; value: T } | { ok: false; error: string };
 
-interface Bridge {
+export interface Bridge {
     core<T = unknown>(method: string, params?: Record<string, unknown>): Promise<CoreReply<T>>;
     onJob(cb: (job: CoreJob) => void): () => void;
     onCoreDown(cb: (error: string | null) => void): () => void;

@@ -18,6 +18,7 @@ import { App } from './App';
 // Registers what happens in the scene when a compute job finishes.
 import '@/compute/apply';
 import { initCompute } from '@/compute/store';
+import { installWebBridge } from '@/platform/web';
 import './styles.css';
 
 // Test-only override of the transparency mode, read by the engine at viewer creation.
@@ -52,6 +53,8 @@ if (new URLSearchParams(location.search).has('selftest')) {
     });
 }
 
+// Served by server/main.cjs (HPC): the bridge goes over HTTP. Must precede initCompute.
+installWebBridge();
 initCompute();
 
 // No StrictMode: its double mount would create and dispose a WebGL context per viewer.
