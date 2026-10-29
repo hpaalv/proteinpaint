@@ -31,6 +31,16 @@ export interface DataState {
     hovered: string | null;
     /** Row whose structure the 3D cells follow (the last one clicked). */
     focused: string | null;
+    /**
+     * Design each "follows the selection" 3D cell shows, by cell id. With two or more
+     * such cells a click goes to one of them (`structureTarget`), so each can hold a
+     * different design; a cell absent here shows `focused`.
+     */
+    cellRows: Record<string, string>;
+    /** The 3D cell the next clicked design opens in: the last one the user picked. */
+    structureTarget: string | null;
+    /** What a click in each 3D cell does — browsing state, not part of the figure. */
+    cellPointer: Record<string, 'select' | 'explore'>;
 
     panels: Panel[];
     activePanelId: string | null;
@@ -55,6 +65,9 @@ export const useData = create<DataState>(() => ({
     selection: new Set(),
     hovered: null,
     focused: null,
+    cellRows: {},
+    structureTarget: null,
+    cellPointer: {},
     panels: [],
     activePanelId: null,
     activeCellId: null,
@@ -119,6 +132,8 @@ async function adoptScan(scan: DatasetScan, tablePath?: string): Promise<void> {
             selection: new Set(),
             hovered: null,
             focused: dataset.rows[0]?.id ?? null,
+            cellRows: {},
+            structureTarget: null,
             panels: [panel],
             activePanelId: panel.id,
             activeCellId: panel.cells[0]?.id ?? null,
@@ -138,7 +153,7 @@ export async function useTable(path: string): Promise<void> {
 }
 
 export function closeDataset(): void {
-    useData.setState({ dataset: null, scan: null, otherTables: [], filters: [], selection: new Set(), panels: [], activePanelId: null, activeCellId: null, focused: null });
+    useData.setState({ dataset: null, scan: null, otherTables: [], filters: [], selection: new Set(), panels: [], activePanelId: null, activeCellId: null, focused: null, cellRows: {}, structureTarget: null });
 }
 
 // ---------------------------------------------------------------------------
@@ -257,8 +272,36 @@ export function toggleSelected(id: string, additive: boolean): void {
         const next = new Set(additive ? s.selection : []);
         if (additive && s.selection.has(id)) next.delete(id);
         else next.add(id);
-        return { selection: next, focused: id };
+        return { selection: next, ...routeFocus(s, id) };
     });
+}
+
+/** The 3D cells of the active panel that follow the clicked design. */
+function followingCells(s: DataState): Cell[] {
+    return activePanel(s)?.cells.filter((c) => c.content.kind === 'structure' && c.content.structure.source.kind === 'selected') ?? [];
+}
+
+export function followingCount(s: DataState = useData.getState()): number {
+    return followingCells(s).length;
+}
+
+/** The 3D cell a clicked design opens in, when there is more than one to choose from. */
+export function receivingCell(s: DataState = useData.getState()): string | null {
+    const cells = followingCells(s);
+    if (cells.length === 0) return null;
+    return cells.find((c) => c.id === s.structureTarget)?.id ?? cells[0]!.id;
+}
+
+/** State change for "this design was clicked": it becomes focused and opens in one 3D cell. */
+function routeFocus(s: DataState, id: string): Pick<DataState, 'focused' | 'cellRows'> {
+    const target = receivingCell(s);
+    if (!target) return { focused: id, cellRows: s.cellRows };
+    // The other cells keep what they show now; one that only followed the focus so far
+    // would otherwise change along with the target.
+    const cellRows = { ...s.cellRows };
+    for (const c of followingCells(s)) if (!(c.id in cellRows) && s.focused) cellRows[c.id] = s.focused;
+    cellRows[target] = id;
+    return { focused: id, cellRows };
 }
 
 export function clearSelection(): void {
@@ -269,8 +312,25 @@ export function setHovered(id: string | null): void {
     if (useData.getState().hovered !== id) useData.setState({ hovered: id });
 }
 
+/** The design a 3D cell shows, or null for a loose file / nothing. */
+export function cellRowId(s: DataState, cellId: string, spec: StructureCellSpec): string | null {
+    if (spec.source.kind === 'row') return spec.source.rowId;
+    if (spec.source.kind === 'selected') return s.cellRows[cellId] ?? s.focused;
+    return null;
+}
+
+export function setCellPointer(cellId: string, mode: 'select' | 'explore'): void {
+    useData.setState((s) => ({ cellPointer: { ...s.cellPointer, [cellId]: mode } }));
+}
+
 export function focusRow(id: string): void {
-    useData.setState({ focused: id });
+    useData.setState((s) => routeFocus(s, id));
+}
+
+/** Focuses the first of a brushed set of designs. */
+export function selectBrushed(ids: Set<string>): void {
+    const first = [...ids][0];
+    useData.setState((s) => ({ selection: ids, ...(first ? routeFocus(s, first) : {}) }));
 }
 
 /** Keeps only the selected designs, as a filter, and clears the selection. */
@@ -435,7 +495,11 @@ export function moveCell(cellId: string, to: { x: number; y: number; w?: number;
 }
 
 export function selectCell(cellId: string | null): void {
-    useData.setState({ activeCellId: cellId });
+    useData.setState((s) => {
+        const cell = activePanel(s)?.cells.find((c) => c.id === cellId);
+        const follows = cell?.content.kind === 'structure' && cell.content.structure.source.kind === 'selected';
+        return { activeCellId: cellId, ...(follows && { structureTarget: cellId }) };
+    });
 }
 
 // ---------------------------------------------------------------------------

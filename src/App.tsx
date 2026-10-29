@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import * as E from '@/engine';
-import { run, toast, useApp, viewer } from '@/store/app';
+import { run, toast, toggleAllPanels, useApp, viewer } from '@/store/app';
 import { browseStep, openFiles, openFolder, setTool } from '@/store/actions';
+import { dataRedo, dataUndo } from '@/store/dataHistory';
 import { redo, undo } from '@/store/history';
 import { Inspector, TAB_KEYS } from '@/ui/layout/Inspector';
 import { SequenceTrack } from '@/ui/layout/SequenceTrack';
@@ -24,14 +25,18 @@ function useShortcuts() {
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const v = viewer();
-            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+            const inData = useApp.getState().workspace === 'data';
+            // Each workspace has its own history; in a text box Ctrl+Z is the box's own undo.
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e)) {
                 e.preventDefault();
-                void undo();
+                if (inData) dataUndo();
+                else void undo();
                 return;
             }
-            if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+            if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z')) && !isTyping(e)) {
                 e.preventDefault();
-                void redo();
+                if (inData) dataRedo();
+                else void redo();
                 return;
             }
             if (e.ctrlKey && e.key.toLowerCase() === 'o') {
@@ -40,8 +45,14 @@ function useShortcuts() {
                 return;
             }
             if (isTyping(e)) return;
+            // "\" hides every side panel in either workspace, leaving the scene or the figure.
+            if (e.key === '\\' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                toggleAllPanels();
+                return;
+            }
             // The data workspace has its own shortcuts; the 3D ones would act on a hidden scene.
-            if (useApp.getState().workspace === 'data' || !v) return;
+            if (inData || !v) return;
             if (e.altKey) {
                 const tab = TAB_KEYS.find(([k]) => k === e.key)?.[1];
                 if (tab) {
@@ -112,6 +123,7 @@ function useShortcuts() {
 export function App() {
     useShortcuts();
     const workspace = useApp((s) => s.workspace);
+    const panels = useApp((s) => s.panels);
     return (
         <div className="flex h-full flex-col">
             <TopBar />
@@ -120,15 +132,22 @@ export function App() {
              * re-creating it on every switch would reload every structure.
              */}
             <div className={cx('flex min-h-0 flex-1', workspace === 'data' && 'hidden')}>
-                <Sidebar />
+                {/* Hidden, not unmounted: the panels keep their state (forms, scroll) while away. */}
+                <div className={cx('flex shrink-0', !panels.left && 'hidden')}>
+                    <Sidebar />
+                </div>
                 <div className="flex min-w-0 flex-1 flex-col">
                     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
                         <Viewport />
-                        <SequenceTrack />
+                        {panels.bottom && <SequenceTrack />}
                     </div>
-                    <Dock />
+                    <div className={cx('flex shrink-0 flex-col', !panels.bottom && 'hidden')}>
+                        <Dock />
+                    </div>
                 </div>
-                <Inspector />
+                <div className={cx('flex shrink-0', !panels.right && 'hidden')}>
+                    <Inspector />
+                </div>
             </div>
             {workspace === 'data' && <DataWorkspace />}
             <StatusBar />

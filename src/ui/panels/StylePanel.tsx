@@ -3,7 +3,7 @@ import * as E from '@/engine';
 import { run, toast, useApp, viewer } from '@/store/app';
 import { act, record } from '@/store/history';
 import { ActionRow, Button, Section, Segmented, Slider } from '../components/Primitives';
-import { NoStructure, resolveTarget, TargetPicker, useActive, type TargetKind } from './shared';
+import { HydrogenControl, NoStructure, resolveTarget, TargetPicker, useActive, type TargetKind } from './shared';
 
 type RibbonChoice = E.RibbonStyle | 'off';
 type AtomChoice = E.AtomStyle | 'off';
@@ -70,8 +70,9 @@ export function StylePanel() {
             await run(E.setLayer(v, { kind: 'selection' }, 'atoms', { layer: 'atoms', style: 'sticks', size: 1 }));
         }
         if (name === 'ligand-spheres') {
-            const r = await E.selectClass(v, 'ligand');
-            if (!r.ok) return;
+            const atoms = await run(E.selectHetero(v, id));
+            if (atoms === null) return;
+            if (atoms === 0) return toast('Esta estrutura não tem ligantes nem íons.', 'info');
             await run(E.setLayer(v, { kind: 'selection' }, 'atoms', { layer: 'atoms', style: 'spheres', size: 1 }));
             E.clearSelection(v);
         }
@@ -144,6 +145,7 @@ export function StylePanel() {
                         format={(x) => (x < 0.01 ? 'opacos' : `${Math.round(x * 100)}%`)}
                     />
                 )}
+                <HydrogenControl structure={active} />
             </Section>
             <Section title="Superfície">
                 <ActionRow<SurfaceChoice>

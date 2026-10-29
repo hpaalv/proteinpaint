@@ -5,6 +5,66 @@ este documento diz **onde o trabalho parou, o que vem a seguir e quais armadilha
 
 ---
 
+## 0. Última sessão: modo HPC (2026-10-27) — leia primeiro
+
+**Onde você está:** há duas máquinas. Esta seção vale para o **HPC** ("marvin", Slurm, repositório em
+`~/pd/proteinpaint`, usuário `paulo.alves`); as seções 1–9 abaixo descrevem o **notebook** do
+usuário (GPU NVIDIA, `~/Downloads/app/protein_paint`). Confira com `hostname` antes de seguir
+instruções de uma ou de outra.
+
+**O que foi feito:** o app roda no HPC em modo web. Um job do Slurm sobe `server/main.cjs` (Node)
+e o `ppcore`; o usuário abre um túnel SSH e usa o app no navegador do notebook (o WebGL roda lá,
+arquivos e cálculos ficam no HPC). Tudo está na branch **`hpc`** (push feito, 4 commits:
+`2f38491`..`dac0b8c`). **A `main` não foi tocada.** Detalhes do que foi feito e verificado: entrada
+"2026-10-27 — Modo HPC" em `STATUS.md`; uso no `README.md` (seção HPC); regras da ponte em `CLAUDE.md`
+("Desktop e web (HPC)").
+
+**Arquivos novos:** `hpc/` (`environment.yml`, `env.sh`, `setup.sh`, `check.sh`, `serve.sh`,
+`pp-hpc`), `backend/` (`files.cjs`, `movie.cjs`, `core.cjs`: lógica tirada do Electron),
+`server/main.cjs`, `src/platform/web.ts`, `src/platform/fileDialog.ts`,
+`src/ui/files/FileDialog.tsx`. `electron/ipc.cjs` e `electron/core.cjs` viraram invólucros finos
+de `backend/` (mesmos 17 canais IPC).
+
+**Usar:**
+```bash
+cd ~/pd/proteinpaint
+sbatch hpc/setup.sh          # só se o ambiente mudou (instala em .hpc/, fora do git)
+hpc/pp-hpc start             # 8 CPUs/32 GB/8 h na short-cpu; --gpu = A100; extras vão ao sbatch
+hpc/pp-hpc status | stop
+```
+No notebook: o `ssh -N -L 5273:<nó>:<porta> paulo.alves@marvin` impresso, depois
+`http://localhost:5273/?token=…`.
+
+**2026-10-29:** lote de 10 correções do usuário feito e `hpc` mesclado na `main` (ver STATUS).
+No HPC, `selftest.cjs` e `selftest4.cjs` passam em Electron real com Xvfb + SwiftShader **no nó de
+login** (os nós de cálculo não têm Xvfb); passe as opções do Chromium *depois* dos argumentos:
+`xvfb-run -a node_modules/electron/dist/electron scripts/selftest4.cjs <saída> --no-sandbox --use-angle=swiftshader --enable-unsafe-swiftshader`.
+Arquivos de teste no HPC precisam estar no `$HOME` (o `/tmp` do login não é visto pelo nó).
+
+**Pendências (em ordem):**
+1. **Selftests 2, 3, 5–8 no notebook** (usam arquivos de `/home/paulo/Downloads`): `git pull`,
+   `npm run build`, rodar (seção 2).
+2. **Teste real pelo navegador do usuário** (GPU de verdade). Aqui só foi testado com Chromium
+   headless + SwiftShader (script em scratchpad, não versionado: carrega o app, abre estrutura pelo
+   diálogo, diálogo de salvar, KVFinder via SSE, modo Dados — zero erros no console).
+3. ~~CUDA na A100~~ **verificado** (job `459385`): `torch_cuda NVIDIA A100-SXM4-40GB`, check OK.
+4. Melhoria opcional (não pedida): exportar vídeo no modo web manda RGBA cru pelo túnel
+   (~8 MB/quadro em 1080p). Comprimir no navegador (PNG/JPEG) antes do POST resolveria.
+
+**Armadilhas do HPC (já pagas):**
+- `python3` do sistema é 3.6; use sempre o do env (`source hpc/env.sh`).
+- `debug-gpu-big` aceita no máximo 2 CPUs; fatias MIG só na QOS `mig`. O usuário prefere as
+  partições normais (`short-cpu`, `short-gpu-big`) quando precisar de mais CPUs.
+- Script com `#SBATCH --gres=gpu` submetido à partição de CPU falha: passe `--gres=none`.
+- PyRosetta 2026.39 removeu `InterfaceAnalyzerMover("A_B")`: use o construtor vazio + `set_interface`.
+- Protocolo do worker usa a chave `"type"` (result/error/progress); o servidor usa `"event"`.
+- **Não use `pkill -f`** para matar o servidor: casa com a própria shell do agente. Use `hpc/pp-hpc stop`
+  ou `scancel`.
+- A chave SSH do GitHub está em `~/.ssh/id_ed25519_github` (o usuário tinha deixado `key`/`key.pub`
+  dentro do repositório; foram movidas).
+
+---
+
 ## 1. Em uma frase
 
 Fases 1 a 4 do `PLAN.md` estão entregues e verificadas; depois disso o usuário testou o app e

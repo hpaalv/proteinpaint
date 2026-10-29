@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import * as E from '@/engine';
-import { run, setSequenceMode, toast, useApp, viewer, type PointerTool, type SequenceMode, type Workspace } from '@/store/app';
+import { run, setPanels, setSequenceMode, toast, toggleAllPanels, useApp, viewer, type PointerTool, type SequenceMode, type Workspace } from '@/store/app';
 import { fetchId, openFiles, openFolder, setTool } from '@/store/actions';
 import { openDatasetFolder, useData } from '@/store/data';
+import { dataRedo, dataUndo, useDataHistory } from '@/store/dataHistory';
 import { redo, undo, useHistory } from '@/store/history';
 import { useFilteredRows } from '@/ui/data/hooks';
 import { Icon } from '../components/Icon';
@@ -19,11 +20,15 @@ function DataTopBarExtras() {
     const dataset = useData((s) => s.dataset);
     const selection = useData((s) => s.selection);
     const rows = useFilteredRows();
+    const canUndo = useDataHistory((s) => s.past.length > 0);
+    const canRedo = useDataHistory((s) => s.future.length > 0);
     return (
         <div className="flex min-w-0 flex-1 items-center gap-2">
             <Button icon="open" onClick={() => void openDatasetFolder()} title="Abrir pasta com estruturas + metadados">
                 Pasta de análise
             </Button>
+            <IconButton icon="undo" title="Desfazer (Ctrl+Z)" disabled={!canUndo} onClick={dataUndo} />
+            <IconButton icon="redo" title="Refazer (Ctrl+Y)" disabled={!canRedo} onClick={dataRedo} />
             {dataset && (
                 <span className="fade-in flex min-w-0 items-center gap-2 text-[11.5px] text-text-2">
                     <span className="mono truncate text-text-1" title={dataset.folder}>
@@ -152,6 +157,23 @@ export function TopBar() {
             ) : (
                 <DataTopBarExtras />
             )}
+            <PanelToggles />
         </header>
+    );
+}
+
+/** Show/hide the side panels; all three off leaves only the scene (or the figure). */
+function PanelToggles() {
+    const panels = useApp((s) => s.panels);
+    const workspace = useApp((s) => s.workspace);
+    const bottom = workspace === 'data' ? 'tabela de designs' : 'sequência e resultados';
+    return (
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 pl-1">
+            <div className="mx-1 h-5 w-px bg-stroke" />
+            <IconButton icon="panelLeft" title={`${panels.left ? 'Ocultar' : 'Mostrar'} o painel da esquerda`} active={panels.left} onClick={() => setPanels({ left: !panels.left })} />
+            <IconButton icon="panelBottom" title={`${panels.bottom ? 'Ocultar' : 'Mostrar'} o painel de baixo (${bottom})`} active={panels.bottom} onClick={() => setPanels({ bottom: !panels.bottom })} />
+            <IconButton icon="panelRight" title={`${panels.right ? 'Ocultar' : 'Mostrar'} o painel da direita`} active={panels.right} onClick={() => setPanels({ right: !panels.right })} />
+            <IconButton icon="maximize" title="Só a visualização: oculta/mostra todos os painéis (\\)" active={!panels.left && !panels.right && !panels.bottom} onClick={toggleAllPanels} />
+        </div>
     );
 }

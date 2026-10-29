@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { drawRosettaOverlays, rosettaDatasets } from '@/compute/apply';
+import { drawRosettaOverlays, openRelaxed, rosettaDatasets } from '@/compute/apply';
 import { updateResult, type ResultEntry } from '@/compute/store';
 import type { RelaxResult, RosettaInterfaceResult } from '@/compute/types';
 import * as E from '@/engine';
-import { asBytes, platform } from '@/platform/bridge';
-import { useApp, viewer } from '@/store/app';
+import { platform } from '@/platform/bridge';
+import { useApp } from '@/store/app';
 import { HydrogenControl } from '../../panels/shared';
 import { AXIS, Chart, TOOLTIP, type ChartOption } from '../../components/Chart';
 import { Button, Toggle } from '../../components/Primitives';
@@ -176,11 +176,11 @@ export function RelaxView({ entry }: { entry: ResultEntry }) {
         yAxis: { type: 'value', name: 'score (REU)', scale: true, ...AXIS },
         series: [{ type: 'scatter', symbolSize: 9, data: runs.map((r) => [r.result.ca_rmsd, r.result.score_after, r.result.seed]), itemStyle: { color: '#4CC9F0' } }],
     };
-    const load = async (r: RelaxResult) => {
-        const v = viewer();
-        if (!v) return;
-        const [f] = await platform.readFiles([r.relaxed_path]);
-        if (f?.ok && f.bytes) await E.loadBytes(v, asBytes(f.bytes), { name: `relax s${r.seed} (${r.score_after.toFixed(0)})`, source: 'file', path: r.relaxed_path });
+    const load = async (job: string, r: RelaxResult) => {
+        const sid = await openRelaxed(entry.structureIds[0]!, r);
+        if (!sid) return;
+        useApp.setState({ activeId: sid });
+        updateResult(entry.id, { data: { ...data, loaded: { ...data.loaded, [job]: sid } } });
     };
     return (
         <div className="flex h-full min-h-0 gap-2">
@@ -200,7 +200,7 @@ export function RelaxView({ entry }: { entry: ResultEntry }) {
                         { key: 'sc', label: 'Sc', align: 'right', render: (r) => r.result.interface?.sc_value.toFixed(3) ?? '—' },
                         { key: 'hb', label: 'H-bonds', align: 'right', render: (r) => r.result.interface?.interface_hbonds ?? '—' },
                         { key: 't', label: 's', align: 'right', render: (r) => r.result.seconds.toFixed(0) },
-                        { key: 'l', label: '', render: (r) => (data.loaded[r.job] ? <span className="text-ok">na cena</span> : <button type="button" className="text-accent" onClick={() => void load(r.result)}>abrir</button>) },
+                        { key: 'l', label: '', render: (r) => (data.loaded[r.job] ? <span className="text-ok">na cena</span> : <button type="button" className="text-accent" onClick={() => void load(r.job, r.result)}>abrir</button>) },
                     ]}
                 />
                 <div className="mt-2">

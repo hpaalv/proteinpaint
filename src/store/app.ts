@@ -66,6 +66,43 @@ export function setSequenceMode(mode: SequenceMode): void {
     }
 }
 
+/** Which side panels are shown; hiding them all leaves only the scene (or the data panel). */
+export interface PanelsShown {
+    left: boolean;
+    right: boolean;
+    bottom: boolean;
+}
+
+const PANELS_KEY = 'pp.panels';
+const ALL_PANELS: PanelsShown = { left: true, right: true, bottom: true };
+
+function initialPanels(): PanelsShown {
+    try {
+        const v = JSON.parse(localStorage.getItem(PANELS_KEY) ?? 'null') as Partial<PanelsShown> | null;
+        if (v && typeof v === 'object') return { ...ALL_PANELS, ...v };
+    } catch {
+        // Storage unavailable or corrupt: everything shown.
+    }
+    return ALL_PANELS;
+}
+
+export function setPanels(patch: Partial<PanelsShown>): void {
+    const panels = { ...useApp.getState().panels, ...patch };
+    useApp.setState({ panels });
+    try {
+        localStorage.setItem(PANELS_KEY, JSON.stringify(panels));
+    } catch {
+        // Not remembered across sessions; still applied now.
+    }
+}
+
+/** Hides every side panel, or brings them all back when they are already hidden. */
+export function toggleAllPanels(): void {
+    const p = useApp.getState().panels;
+    const anyShown = p.left || p.right || p.bottom;
+    setPanels(anyShown ? { left: false, right: false, bottom: false } : ALL_PANELS);
+}
+
 export interface AppState {
     /** Which workspace the window shows: the 3D viewer or the data/panel composer. */
     workspace: Workspace;
@@ -97,6 +134,7 @@ export interface AppState {
      * bottom edge (over the scene, so the canvas never resizes), or off. Remembered.
      */
     sequenceMode: SequenceMode;
+    panels: PanelsShown;
 
     library: Library;
     busy: string | null;
@@ -129,6 +167,7 @@ export const useApp = create<AppState>(() => ({
     look: 'soft',
     lookRev: 0,
     sequenceMode: initialSequenceMode(),
+    panels: initialPanels(),
     library: { folder: null, files: [], current: null, browseId: null },
     busy: null,
     movieProgress: null,

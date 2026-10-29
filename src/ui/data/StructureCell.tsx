@@ -3,7 +3,7 @@ import * as E from '@/engine';
 import { platform, asBytes } from '@/platform/bridge';
 import type { StructureCellSpec } from '@/panels/types';
 import { THEMES, type ThemeId } from '@/panels/theme';
-import { rowById, useData } from '@/store/data';
+import { cellRowId, rowById, useData } from '@/store/data';
 import { Icon } from '../components/Icon';
 import { Spinner } from '../components/Primitives';
 
@@ -40,9 +40,9 @@ export function StructureCell({ cellId, spec, theme }: { cellId: string; spec: S
     const [viewerReady, setViewerReady] = useState(0);
     const [message, setMessage] = useState('');
 
-    const focused = useData((s) => s.focused);
+    const rowId = useData((s) => cellRowId(s, cellId, spec));
     const dataset = useData((s) => s.dataset);
-    const rowId = spec.source.kind === 'row' ? spec.source.rowId : spec.source.kind === 'selected' ? focused : null;
+    const pointer = useData((s) => s.cellPointer[cellId] ?? 'select');
     const path = spec.source.kind === 'file' ? spec.source.path : (rowById(rowId)?.structurePath ?? null);
     const key = [path, ...spec.withFiles].join('|');
 
@@ -70,6 +70,7 @@ export function StructureCell({ cellId, spec, theme }: { cellId: string; spec: S
             setViewerReady((n) => n + 1);
             const resize = new ResizeObserver(() => created.value.handleResize());
             resize.observe(container);
+            E.trackFocusColors(created.value);
             setStatus('empty');
             return () => resize.disconnect();
         })();
@@ -81,6 +82,14 @@ export function StructureCell({ cellId, spec, theme }: { cellId: string; spec: S
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cellId]);
+
+    // Select or explore on click, as the structure workspace's pointer tools.
+    useEffect(() => {
+        const viewer = viewerRef.current;
+        if (!viewer) return;
+        E.setPointerMode(viewer, pointer);
+        if (pointer === 'select') E.clearFocus(viewer);
+    }, [viewerReady, pointer]);
 
     // Load whatever the cell points at.
     useEffect(() => {

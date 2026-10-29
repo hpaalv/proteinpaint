@@ -3,7 +3,7 @@ import type { ECharts } from 'echarts';
 import { buildChart, type ChartContext } from '@/panels/charts';
 import type { ChartSpec } from '@/panels/types';
 import { THEMES, type ThemeId } from '@/panels/theme';
-import { rowById, setHovered, toggleSelected, useData } from '@/store/data';
+import { rowById, selectBrushed, setHovered, toggleSelected, useData } from '@/store/data';
 import { loadPaths } from '@/store/actions';
 import { toast, useApp } from '@/store/app';
 import { useFilteredRows } from './hooks';
@@ -69,7 +69,7 @@ export function ChartCell({ cellId, spec, theme, fontScale, compact, lettered }:
                     }
                 }
                 // An empty brush is the user clearing it, not selecting nothing.
-                if (ids.size > 0) useData.setState({ selection: ids, focused: [...ids][0] ?? null });
+                if (ids.size > 0) selectBrushed(ids);
             },
         }),
         [],

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useApp } from '@/store/app';
 import { useData } from '@/store/data';
 import { useActivePanel } from './hooks';
 import { Icon } from '../components/Icon';
@@ -20,6 +21,7 @@ export function DataWorkspace() {
     const activeId = useData((s) => s.activePanelId);
     const panel = useActivePanel();
     const tableOpen = useData((s) => s.tableOpen);
+    const shown = useApp((s) => s.panels);
 
     // Escape clears the selection, as it does in the 3D workspace.
     useEffect(() => {
@@ -34,7 +36,9 @@ export function DataWorkspace() {
 
     return (
         <div className="flex min-h-0 flex-1">
-            <DataSidebar />
+            <div className={cx('flex shrink-0', !shown.left && 'hidden')}>
+                <DataSidebar />
+            </div>
             <div className="flex min-w-0 flex-1 flex-col">
                 {panels.length > 1 && (
                     <div className="scroll-themed flex h-8 shrink-0 items-center gap-1 overflow-x-auto border-b border-stroke px-2">
@@ -69,8 +73,8 @@ export function DataWorkspace() {
                         )}
                     </div>
                 )}
-                {dataset && tableOpen && <DataTable />}
-                {dataset && !tableOpen && (
+                {dataset && shown.bottom && tableOpen && <DataTable />}
+                {dataset && shown.bottom && !tableOpen && (
                     <button
                         type="button"
                         onClick={() => useData.setState({ tableOpen: true })}
@@ -80,7 +84,9 @@ export function DataWorkspace() {
                     </button>
                 )}
             </div>
-            <DataInspector />
+            <div className={cx('flex shrink-0', !shown.right && 'hidden')}>
+                <DataInspector />
+            </div>
         </div>
     );
 }

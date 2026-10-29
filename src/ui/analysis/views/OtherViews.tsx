@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { addHydrogens } from '@/compute/hydrogens';
 import type { ResultEntry } from '@/compute/store';
 import type { DsspResult, ElectrostaticsResult, KvfinderResult, RenumberResult, RosettaInterfaceResult, TmalignResult } from '@/compute/types';
 import * as E from '@/engine';
@@ -47,6 +48,9 @@ export function ElectrostaticsView({ entry }: { entry: ResultEntry }) {
                     <Button onClick={() => void platform.showFolder(r.dx_path)}>Abrir .dx</Button>
                     <Button onClick={() => entry.workdir && void platform.showFolder(entry.workdir)}>Pasta do job</Button>
                 </div>
+                <Button onClick={() => void addHydrogens(id, r.ph)} title="O mesmo PDB2PQR + PROPKA deste cálculo; a estrutura na tela é substituída pela versão com H">
+                    Adicionar hidrogênios à estrutura (pH {r.ph})
+                </Button>
             </div>
             <Pane title="Superfície" className="w-[360px] shrink-0">
                 <div className="flex flex-col gap-2">

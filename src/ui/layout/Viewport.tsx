@@ -47,6 +47,7 @@ export function Viewport() {
             const preset = useApp.getState().look;
             void E.applyLook(v, E.presetLook(preset === 'custom' ? E.DEFAULT_LOOK : preset), 0);
             await E.styleFocusView(v);
+            cleanups.push(E.trackFocusColors(v));
             // Gradient / transparent figure backgrounds are painted here, behind the canvas.
             // Written straight to the element: during a look blend it changes every frame.
             cleanups.push(

@@ -1,7 +1,8 @@
 import { memo, useRef } from 'react';
 import * as E from '@/engine';
 import { intToHex } from '@/data/palettes';
-import { useApp, viewer } from '@/store/app';
+import { setSequenceMode, useApp, viewer } from '@/store/app';
+import { Icon } from '../components/Icon';
 import { cx } from '../components/Primitives';
 
 const CELL = 10;
@@ -95,7 +96,16 @@ const ChainRow = memo(function ChainRow({ s, c, color, selected }: RowProps) {
 function Ruler({ length }: { length: number }) {
     return (
         <div className="flex h-4 items-end">
-            <div className="sticky left-0 z-10 h-full w-[150px] shrink-0 border-r border-stroke bg-bg-1" />
+            <div className="sticky left-0 z-10 flex h-full w-[150px] shrink-0 items-center border-r border-stroke bg-bg-1 px-1.5">
+                <button
+                    type="button"
+                    title="Ocultar a trilha de sequência (volta pelo botão de sequência na barra de cima)"
+                    onClick={() => setSequenceMode('off')}
+                    className="flex items-center gap-1 rounded px-1 text-[10px] text-text-2 transition-colors hover:bg-bg-3 hover:text-text-0"
+                >
+                    <Icon name="close" size={10} /> ocultar
+                </button>
+            </div>
             <div className="relative h-full" style={{ width: length * CELL }}>
                 {Array.from({ length: Math.floor(length / 10) }, (_, k) => (
                     <span key={k} className="tnum absolute bottom-0 text-[9px] text-text-2" style={{ left: (k + 1) * 10 * CELL - CELL }}>

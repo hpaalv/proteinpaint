@@ -6,6 +6,7 @@ import { RAMPS, SERIES_PALETTES, THEMES, type RampId, type SeriesPaletteId, type
 import { gateLabel } from '@/panels/charts';
 import {
     addPanel,
+    cellRowId,
     duplicatePanel,
     patchChart,
     patchPanel,
@@ -13,9 +14,14 @@ import {
     patchText,
     removeCell,
     removePanel,
+    rowById,
     selectPanel,
+    setCellPointer,
     useData,
 } from '@/store/data';
+import { loadPaths } from '@/store/actions';
+import { useApp } from '@/store/app';
+import { structureViewers } from './StructureCell';
 import { exportPanelImage, exportCellImage, exportTableCsv } from '@/store/dataActions';
 import { Button, Field, IconButton, Section, Segmented, Select, Slider, TextInput, Toggle, cx } from '../components/Primitives';
 import { useActiveCell, useActivePanel } from './hooks';
@@ -504,10 +510,68 @@ function ChartMenus({ dataset, cellId, spec }: { dataset: Dataset; cellId: strin
 // Structure and text menus
 // ---------------------------------------------------------------------------
 
+/**
+ * The design a 3D cell shows and what can be done with it right there — explore its
+ * contacts as in the structure workspace, reframe, or take it there — plus its row
+ * of the table, so the numbers sit next to the structure they describe.
+ */
+function DesignMenus({ dataset, cellId, spec }: { dataset: Dataset; cellId: string; spec: StructureCellSpec }) {
+    const rowId = useData((s) => cellRowId(s, cellId, spec));
+    const pointer = useData((s) => s.cellPointer[cellId] ?? 'select');
+    const row = rowById(rowId);
+    const path = spec.source.kind === 'file' ? spec.source.path : (row?.structurePath ?? null);
+    const numeric = dataset.columns.filter((c) => c.kind === 'number' && c.key !== dataset.idKey).slice(0, 12);
+    const v = structureViewers.get(cellId);
+    return (
+        <Section title="Design">
+            <div className="mono truncate text-[12px] text-text-0" title={path ?? undefined}>
+                {row?.id ?? (path ? path.split('/').pop() : 'nenhum')}
+            </div>
+            <Field label="Clique na estrutura">
+                <Segmented<'select' | 'explore'>
+                    value={pointer}
+                    onChange={(m) => setCellPointer(cellId, m)}
+                    options={[
+                        { value: 'select', label: 'Selecionar', title: 'Clique marca o resíduo' },
+                        { value: 'explore', label: 'Explorar', title: 'Clique foca o resíduo e mostra a vizinhança de 5 Å com as interações' },
+                    ]}
+                />
+            </Field>
+            <div className="flex flex-wrap gap-1">
+                <Button onClick={() => v && E.resetView(v)}>Enquadrar</Button>
+                {pointer === 'explore' && <Button onClick={() => v && E.clearFocus(v)}>Limpar foco</Button>}
+                <Button
+                    disabled={!path}
+                    title="Abre este design no modo Estrutura, com todas as ferramentas"
+                    onClick={() => path && void loadPaths([path]).then(() => useApp.setState({ workspace: 'structure' }))}
+                >
+                    Abrir no modo Estrutura
+                </Button>
+            </div>
+            {row && numeric.length > 0 && (
+                <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 text-[11px]">
+                    {numeric.map((c) => {
+                        const x = row.values[c.key];
+                        return (
+                            <div key={c.key} className="contents">
+                                <span className="truncate text-text-2" title={c.label}>
+                                    {c.label}
+                                </span>
+                                <span className="tnum text-right text-text-0">{typeof x === 'number' ? (Math.abs(x) >= 100 ? x.toFixed(0) : x.toPrecision(3)) : '—'}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </Section>
+    );
+}
+
 function StructureMenus({ dataset, cellId, spec }: { dataset: Dataset; cellId: string; spec: StructureCellSpec }) {
     const rows = dataset.rows.filter((r) => r.structurePath);
     return (
         <>
+            <DesignMenus dataset={dataset} cellId={cellId} spec={spec} />
             <Section title="Estrutura">
                 <Field label="Mostrar">
                     <Segmented<'selected' | 'row' | 'file'>

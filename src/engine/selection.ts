@@ -24,7 +24,7 @@ import { getInteriorParam } from 'molstar/lib/mol-geo/geometry/interior';
 import { Color } from 'molstar/lib/mol-util/color';
 import { chainMap } from './coloring';
 import { compileSpec, parseSpec } from './spec';
-import { chainExpression } from './style';
+import { chainExpression, heteroExpression } from './style';
 import { hydrogenParams, type Viewer } from './viewer';
 import {
     ok,
@@ -65,6 +65,7 @@ export function setPickLevel(viewer: Viewer, level: PickLevel): void {
 export async function styleFocusView(viewer: Viewer, id?: StructureId): Promise<void> {
     const plugin = viewer.plugin;
     const entry = id ? viewer.entry(id) : [...viewer.entries.values()][0];
+    focusStyleKey.set(viewer, focusKey(viewer, entry?.info.id ?? null));
     const base = entry
         ? { name: 'pp-chain-map' as const, params: { colors: chainMap(viewer, entry), fallback: Color(0x8a8f98) } }
         : { name: 'chain-id' as const, params: {} };
@@ -77,6 +78,29 @@ export async function styleFocusView(viewer: Viewer, id?: StructureId): Promise<
         if (h.ignoreHydrogensVariant) p.ignoreHydrogensVariant = h.ignoreHydrogensVariant;
         p.interior = { ...getInteriorParam().defaultValue, colorStrength: 0, substanceStrength: 0 };
     });
+}
+
+/** What the focus view was last themed for, per viewer — restyling only when it changes. */
+const focusStyleKey = new WeakMap<Viewer, string>();
+
+function focusKey(viewer: Viewer, id: StructureId | null): string {
+    const entry = id ? viewer.entry(id) : undefined;
+    return JSON.stringify([id, entry ? chainMap(viewer, entry) : null, viewer.hydrogens]);
+}
+
+/**
+ * Keeps the explore neighbourhood in the colours of the structure being explored.
+ * Theming it once at start-up was not enough: with no structure loaded yet it fell back
+ * to Mol*'s own chain palette, so the side chains came out in colours that matched
+ * nothing on screen until some colour setting happened to be changed.
+ */
+export function trackFocusColors(viewer: Viewer): () => void {
+    const sub = viewer.plugin.managers.structure.focus.behaviors.current.subscribe((focus) => {
+        if (!focus) return;
+        const id = viewer.idOf(focus.loci.structure);
+        if (id && focusStyleKey.get(viewer) !== focusKey(viewer, id)) void styleFocusView(viewer, id);
+    });
+    return () => sub.unsubscribe();
 }
 
 // ---------------------------------------------------------------------------
@@ -339,6 +363,20 @@ export function selectInterface(viewer: Viewer, id: StructureId, chainsA: string
         const wholeB = MS.struct.modifier.wholeResidues({ 0: near(side(chainsB), side(chainsA)) });
         await applyPerStructure(viewer, 'set', () => StructureSelectionQuery('interface', MS.struct.combinator.merge([wholeA, wholeB])), id);
     });
+}
+
+/**
+ * Every non-polymer, non-water group of one structure — ligands, ions, lipids, sugars:
+ * what the opening preset draws as sticks. Mol*'s `ligand` query leaves ions, lipids
+ * and sugars out, so a "ligands as spheres" built on it left those as sticks.
+ */
+export async function selectHetero(viewer: Viewer, id: StructureId): Promise<Result<number>> {
+    try {
+        const atoms = await applyPerStructure(viewer, 'set', () => StructureSelectionQuery('hetero', heteroExpression()), id);
+        return ok(atoms);
+    } catch (e) {
+        return err(errorMessage(e));
+    }
 }
 
 export function expandToChains(viewer: Viewer): Result<true> {

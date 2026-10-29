@@ -1,5 +1,42 @@
 # Estado do projeto
 
+## 2026-10-29 — Lote de correções do usuário (testado pelo navegador no HPC)
+
+### Corrigido (causa → conserto)
+
+1. **Ligantes em esferas**: o atalho usava a consulta `ligand` do Mol*, que exclui íons, lipídios
+   e açúcares (o preset inicial desenha todos como sticks, via `heteroExpression`), e falhava
+   calado sem ligante. Agora `selectHetero` (mesma expressão do preset) e aviso quando não há.
+2. **Relax: qual estrutura está na tela?** O modelo relaxado era aberto *por cima* do original, os
+   dois visíveis. Agora `openRelaxed` (apply.ts) herda nomes/papéis/cores (`inheritLook`, também
+   usado pelos hidrogênios), oculta o original, ativa o relaxado e avisa.
+3. **Hidrogênios**: o controle só existia nos painéis de Interface. Agora também em Estilo › Átomos
+   (com "Adicionar" = PDB2PQR + PROPKA) e um botão na aba de Eletrostática (mesmo protocolo e pH).
+   Aviso de que H só aparecem onde há átomos desenhados, não na fita.
+4. **Explorar com cadeias laterais na cor errada**: `styleFocusView` rodava uma vez ao criar o
+   visualizador, sem estrutura carregada → caía na paleta `chain-id` do Mol*, até alguma cor ser
+   mudada. Agora `trackFocusColors` re-tematiza a cada foco, com as cores da estrutura focada
+   (também nas células 3D do modo Dados).
+5. **Ctrl+Z no modo Dados**: não havia histórico. `src/store/dataHistory.ts` grava painéis e
+   filtros por assinatura do store (referências imutáveis, sem cópia; rajadas < 600 ms = 1 passo;
+   seleção fora do histórico). Ctrl+Z dentro de caixa de texto volta a ser o desfazer do texto.
+6. **Esconder painéis**: botões na barra de cima (esquerda, baixo, direita, "só a visualização") e
+   tecla `\`, nos dois modos; lembrado entre sessões. A trilha de sequência ganhou "× ocultar".
+7. **Duas células 3D no modo Dados**: as duas seguiam `focused`. Agora o clique vai só para a célula
+   3D escolhida por último (`structureTarget`, `cellRows`), as outras mantêm o que mostram, e um
+   selo diz onde o próximo design abre.
+8. **Menu do design no modo Dados**: seção "Design" na célula 3D com Selecionar/Explorar,
+   Enquadrar, Abrir no modo Estrutura e as métricas da linha.
+
+### Verificado
+
+- Chromium headless (SwiftShader) no servidor local: esferas em 1HSG, tema do Explorar =
+  `pp-chain-map` com a cor da cadeia, painéis/tecla `\`, roteamento em 3 células, Ctrl+Z/Ctrl+Y.
+- FastRelax (5 repeats) por um job `pp-hpc` real: original oculto, relaxado ativo com 1.612 H e
+  papéis herdados.
+- Electron (Xvfb + SwiftShader, nó de login): `selftest.cjs` 13/13 e `selftest4.cjs` 26/26, zero
+  erros de console. **Não rodados aqui** (usam arquivos de `/home/paulo/Downloads`): 2, 3, 5–8.
+
 ## 2026-10-27 — Modo HPC (Slurm): servidor web + túnel SSH
 
 ### O que entrou

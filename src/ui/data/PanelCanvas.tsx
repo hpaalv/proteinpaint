@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { THEMES } from '@/panels/theme';
 import { cellLetter, type Cell, type Panel } from '@/panels/types';
-import { addChartCell, addStructureCell, addCell, duplicateCell, moveCell, removeCell, selectCell, useData } from '@/store/data';
+import { addChartCell, addStructureCell, addCell, duplicateCell, followingCount, moveCell, receivingCell, removeCell, selectCell, useData } from '@/store/data';
 import { Icon } from '../components/Icon';
 import { cx, IconButton } from '../components/Primitives';
 import { ChartCell } from './ChartCell';
@@ -21,6 +21,9 @@ interface DragState {
 function CellChrome({ panel, cell, active, children }: { panel: Panel; cell: Cell; active: boolean; children: React.ReactNode }) {
     const theme = THEMES[panel.theme];
     const title = cell.content.kind === 'chart' ? cell.content.chart.title : cell.content.kind === 'structure' ? cell.content.structure.title : '';
+    // With several 3D cells following the clicks, say which one the next design opens in.
+    const follows = cell.content.kind === 'structure' && cell.content.structure.source.kind === 'selected';
+    const receiving = useData((s) => (follows && followingCount(s) > 1 ? receivingCell(s) === cell.id : null));
     return (
         <div
             onPointerDown={() => selectCell(cell.id)}
@@ -43,6 +46,16 @@ function CellChrome({ panel, cell, active, children }: { panel: Panel; cell: Cel
             <div className="min-h-0 flex-1">{children}</div>
 
             {/* Chrome that only exists while composing — never exported. */}
+            {receiving !== null && (
+                <span
+                    className={cx(
+                        'pointer-events-none absolute bottom-1.5 left-1.5 z-20 rounded-md px-1.5 py-0.5 text-[10.5px] transition-opacity duration-150',
+                        receiving ? 'bg-accent/90 text-bg-0' : 'glass text-text-1 opacity-0 group-hover/cell:opacity-100',
+                    )}
+                >
+                    {receiving ? 'O próximo design clicado abre aqui' : 'Clique nesta célula para abrir o próximo design nela'}
+                </span>
+            )}
             <div className="absolute top-1 right-1 z-20 flex gap-0.5 opacity-0 transition-opacity duration-150 group-hover/cell:opacity-100">
                 <IconButton icon="layers" size={20} title="Duplicar célula" onClick={() => duplicateCell(cell.id)} />
                 <IconButton icon="trash" size={20} title="Remover célula" onClick={() => removeCell(cell.id)} />

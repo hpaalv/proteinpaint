@@ -22,6 +22,24 @@ export async function addHydrogens(id: E.StructureId, ph = 7): Promise<void> {
     if (job) toast(`Adicionando hidrogênios a ${s.alias || s.name} (pH ${ph}, PROPKA)…`, 'info', 2500);
 }
 
+/**
+ * Gives a structure derived from another (protonated, relaxed) the original's chain
+ * names, roles and colours, so swapping one for the other changes nothing else on screen.
+ */
+export async function inheritLook(fromId: E.StructureId, toId: E.StructureId): Promise<void> {
+    const v = viewer();
+    const old = v?.entry(fromId);
+    const info = v?.entry(toId)?.info;
+    if (!v || !old || !info) return;
+    for (const c of old.info.chains) {
+        if (!info.chains.some((x) => x.authAsymId === c.authAsymId)) continue;
+        if (c.alias) E.renameChain(v, toId, c.authAsymId, c.alias);
+        await E.setChainRole(v, toId, c.authAsymId, c.role);
+    }
+    for (const [chain, color] of Object.entries(old.chainColors)) await E.setChainColor(v, toId, chain, color);
+    await E.setColorSettings(v, toId, { ...old.color, dataset: null, scheme: old.color.scheme === 'data' ? 'chain' : old.color.scheme });
+}
+
 export async function applyHydrogens(job: CoreJob, meta: JobMeta): Promise<void> {
     const v = viewer();
     const r = job.result as HydrogensResult;
@@ -33,13 +51,7 @@ export async function applyHydrogens(job: CoreJob, meta: JobMeta): Promise<void>
     const info = await run(E.loadBytes(v, asBytes(file.bytes), { name: `${old.info.name} +H`, source: 'file', path: r.output }));
     if (!info) return;
     E.renameStructure(v, info.id, old.info.alias ? `${old.info.alias} +H` : '');
-    for (const c of old.info.chains) {
-        if (!info.chains.some((x) => x.authAsymId === c.authAsymId)) continue;
-        if (c.alias) E.renameChain(v, info.id, c.authAsymId, c.alias);
-        await E.setChainRole(v, info.id, c.authAsymId, c.role);
-    }
-    for (const [chain, color] of Object.entries(old.chainColors)) await E.setChainColor(v, info.id, chain, color);
-    await E.setColorSettings(v, info.id, { ...old.color, dataset: null, scheme: old.color.scheme === 'data' ? 'chain' : old.color.scheme });
+    await inheritLook(oldId, info.id);
     await closeStructure(oldId);
     useApp.setState({ activeId: info.id });
     const extra = [r.ligands_kept.length ? `${r.ligands_kept.length} ligante(s) mantido(s)` : '', r.residues_dropped.length ? `${r.residues_dropped.length} resíduo(s) não reconhecido(s) ficaram de fora` : '']

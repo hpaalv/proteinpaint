@@ -2,7 +2,7 @@
  * What happens in the scene when a job finishes. One handler per tool.
  */
 
-import { applyHydrogens } from './hydrogens';
+import { applyHydrogens, inheritLook } from './hydrogens';
 import * as E from '@/engine';
 import { hexToInt } from '@/data/palettes';
 import { asBytes, platform, type CoreJob } from '@/platform/bridge';
@@ -128,6 +128,19 @@ async function loadFile(path: string, name: string): Promise<E.StructureId | nul
     return info?.id ?? null;
 }
 
+/**
+ * Opens a relaxed model in place of its input: same chain names, roles and colours,
+ * and the input hidden — two overlapping copies made it unclear which one was on screen.
+ */
+export async function openRelaxed(originalId: E.StructureId, r: RelaxResult): Promise<E.StructureId | null> {
+    const v = viewer();
+    const sid = await loadFile(r.relaxed_path, `${nameOf(originalId)} · relax s${r.seed} (${r.score_after.toFixed(0)})`);
+    if (!v || !sid || !v.entry(originalId)) return sid;
+    await inheritLook(originalId, sid);
+    E.setVisible(v, originalId, false);
+    return sid;
+}
+
 function nameOf(id: E.StructureId): string {
     const s = useApp.getState().structures.find((x) => x.id === id);
     return s ? s.alias || s.name : '?';
@@ -214,8 +227,13 @@ async function handle(job: CoreJob, meta: JobMeta): Promise<void> {
             const base = nameOf(id);
             const loaded: Record<string, E.StructureId> = {};
             for (const r of toLoad) {
-                const sid = await loadFile(r.result.relaxed_path, `${base} · relax s${r.result.seed} (${r.result.score_after.toFixed(0)})`);
+                const sid = await openRelaxed(id, r.result);
                 if (sid) loaded[r.job] = sid;
+            }
+            const best = toLoad[0] && loaded[toLoad[0].job];
+            if (best) {
+                useApp.setState({ activeId: best });
+                toast(`Na tela: o modelo relaxado (seed ${toLoad[0]!.result.seed}). O original foi ocultado; o olho na lista de estruturas o mostra de novo.`, 'ok', 7000);
             }
             addResult({
                 id: `relax:${group}`,

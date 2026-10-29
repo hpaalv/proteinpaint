@@ -88,7 +88,11 @@ export function HydrogenControl({ structure }: { structure: E.StructureInfo | nu
                     </Button>
                 </div>
             ) : (
-                structure && <span className="text-[10.5px] text-text-2">{structure.hydrogenCount.toLocaleString('pt-BR')} hidrogênios no arquivo</span>
+                structure && (
+                    <span className="text-[10.5px] leading-snug text-text-2">
+                        {structure.hydrogenCount.toLocaleString('pt-BR')} hidrogênios no arquivo. Aparecem onde há átomos desenhados (sticks, esferas), não na fita.
+                    </span>
+                )
             )}
         </div>
     );
